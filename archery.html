@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Longshot — Archery Range</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --bg-deep:#1a1410;
+    --bg-panel:#241c16;
+    --parchment:#e8dcc4;
+    --parchment-dim:#c4b89a;
+    --oxblood:#a8443a;
+    --oxblood-dark:#7a2f28;
+    --field:#5c7a44;
+    --field-dark:#3f5630;
+    --brass:#c9a227;
+    --brass-bright:#e8c352;
+    --wood:#3a2a1e;
+    --wood-light:#5a4030;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0; padding:0;
+    background:var(--bg-deep);
+    color:var(--parchment);
+    font-family:'Inter',sans-serif;
+    overflow-x:hidden;
+    width:100%;
+  }
+
+  .stage{
+    position:relative;
+    width:100%;
+    max-width:980px;
+    margin:0 auto;
+    background:
+      radial-gradient(ellipse 140% 90% at 50% 0%, rgba(232,220,196,0.05), transparent 60%),
+      var(--bg-deep);
+    padding:18px 18px 28px;
+  }
+
+  .titlebar{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    padding:4px 6px 14px;
+    border-bottom:1px solid rgba(232,220,196,0.14);
+    margin-bottom:14px;
+  }
+
+  .titlebar h1{
+    font-family:'Bitter',serif;
+    font-weight:800;
+    font-size:26px;
+    letter-spacing:0.5px;
+    margin:0;
+    color:var(--parchment);
+  }
+  .titlebar h1 span{ color:var(--oxblood); }
+
+  .titlebar .sub{
+    font-size:12px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--parchment-dim);
+  }
+
+  .hud{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:16px;
+    margin-bottom:12px;
+    flex-wrap:wrap;
+  }
+
+  .hud-group{ display:flex; gap:10px; flex-wrap:wrap; }
+
+  .stat{
+    background:var(--bg-panel);
+    border:1px solid rgba(232,220,196,0.12);
+    border-radius:3px;
+    padding:8px 14px;
+    min-width:78px;
+  }
+  .stat .label{
+    font-size:10px;
+    letter-spacing:1.2px;
+    text-transform:uppercase;
+    color:var(--parchment-dim);
+    display:block;
+    margin-bottom:3px;
+  }
+  .stat .value{
+    font-family:'Bitter',serif;
+    font-weight:700;
+    font-size:22px;
+    color:var(--parchment);
+    line-height:1;
+  }
+  .stat .value.brass{ color:var(--brass-bright); }
+  .stat .value.oxblood{ color:#d97870; }
+
+  .wind-stat .arrow-icon{
+    display:inline-block;
+    margin-left:6px;
+    transition:transform 0.3s ease;
+    color:var(--brass-bright);
+  }
+
+  canvas{
+    display:block;
+    width:100%;
+    height:auto;
+    background:linear-gradient(to bottom, #2a3a52 0%, #4a6478 38%, #6b8e4e 42%, #4a6038 100%);
+    border:1px solid rgba(232,220,196,0.18);
+    border-radius:2px;
+    cursor:crosshair;
+    touch-action:none;
+  }
+
+  .controls-row{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    margin-top:14px;
+    flex-wrap:wrap;
+  }
+
+  .power-wrap{
+    flex:1;
+    min-width:220px;
+  }
+  .power-label{
+    font-size:11px;
+    letter-spacing:1.2px;
+    text-transform:uppercase;
+    color:var(--parchment-dim);
+    margin-bottom:5px;
+    display:flex;
+    justify-content:space-between;
+  }
+  .power-track{
+    height:14px;
+    width:100%;
+    background:var(--wood);
+    border:1px solid rgba(232,220,196,0.2);
+    border-radius:2px;
+    overflow:hidden;
+    position:relative;
+  }
+  .power-fill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(to right, var(--field), var(--brass), var(--oxblood));
+    transition:width 0.03s linear;
+  }
+  .power-track .sweetzone{
+    position:absolute;
+    top:0; bottom:0;
+    left:62%; width:18%;
+    background:rgba(232,220,196,0.18);
+    border-left:1px solid rgba(232,220,196,0.4);
+    border-right:1px solid rgba(232,220,196,0.4);
+  }
+
+  .hint{
+    font-size:12px;
+    color:var(--parchment-dim);
+    text-align:center;
+    margin-top:4px;
+    min-height:16px;
+  }
+
+  .btn{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:0.4px;
+    background:var(--wood-light);
+    color:var(--parchment);
+    border:1px solid rgba(232,220,196,0.25);
+    border-radius:3px;
+    padding:10px 20px;
+    cursor:pointer;
+    transition:background 0.15s ease, transform 0.1s ease;
+    white-space:nowrap;
+  }
+  .btn:hover{ background:#6b4d38; }
+  .btn:active{ transform:scale(0.97); }
+  .btn.primary{
+    background:var(--oxblood);
+    border-color:var(--oxblood-dark);
+  }
+  .btn.primary:hover{ background:#bf504a; }
+
+  .feed{
+    margin-top:14px;
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    min-height:30px;
+  }
+  .feed-chip{
+    font-family:'Bitter',serif;
+    font-size:12px;
+    font-weight:700;
+    padding:4px 10px;
+    border-radius:2px;
+    background:var(--bg-panel);
+    border:1px solid rgba(232,220,196,0.15);
+    color:var(--parchment-dim);
+    animation:chip-in 0.25s ease;
+  }
+  .feed-chip.gold{ color:var(--brass-bright); border-color:rgba(201,162,39,0.4); }
+  .feed-chip.miss{ color:#8a7d6c; }
+
+  @keyframes chip-in{
+    from{ opacity:0; transform:translateY(4px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  .overlay{
+    position:absolute;
+    inset:0;
+    background:rgba(20,15,11,0.92);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    text-align:center;
+    padding:30px;
+    z-index:5;
+    border-radius:2px;
+  }
+  .overlay h2{
+    font-family:'Bitter',serif;
+    font-size:32px;
+    margin:0 0 8px;
+    color:var(--brass-bright);
+  }
+  .overlay p{
+    color:var(--parchment-dim);
+    font-size:14px;
+    max-width:420px;
+    line-height:1.6;
+    margin:0 0 22px;
+  }
+  .overlay .score-big{
+    font-family:'Bitter',serif;
+    font-size:54px;
+    font-weight:800;
+    color:var(--parchment);
+    margin:0 0 4px;
+  }
+
+  @media (max-width:600px){
+    .titlebar h1{ font-size:20px; }
+    .stat{ padding:6px 10px; min-width:64px; }
+    .stat .value{ font-size:17px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+
+  <div class="titlebar">
+    <h1>Long<span>shot</span></h1>
+    <div class="sub">Range Practice</div>
+  </div>
+
+  <div class="hud">
+    <div class="hud-group">
+      <div class="stat">
+        <span class="label">Score</span>
+        <span class="value brass" id="score">0</span>
+      </div>
+      <div class="stat">
+        <span class="label">Arrows left</span>
+        <span class="value" id="arrows">6</span>
+      </div>
+      <div class="stat">
+        <span class="label">Round</span>
+        <span class="value" id="round">1 / 5</span>
+      </div>
+    </div>
+    <div class="hud-group">
+      <div class="stat wind-stat">
+        <span class="label">Wind</span>
+        <span class="value" id="windval">0.0<i class="arrow-icon" id="windarrow">→</i></span>
+      </div>
+      <div class="stat">
+        <span class="label">Best end</span>
+        <span class="value oxblood" id="best">0</span>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="game" width="940" height="460"></canvas>
+
+  <div class="controls-row">
+    <div class="power-wrap">
+      <div class="power-label"><span>Draw power</span><span id="powerpct">0%</span></div>
+      <div class="power-track">
+        <div class="sweetzone"></div>
+        <div class="power-fill" id="powerfill"></div>
+      </div>
+    </div>
+    <button class="btn primary" id="resetbtn">New game</button>
+  </div>
+
+  <div class="hint" id="hint">Click and hold on the field to draw your bow. Move up/down to aim. Release to fire.</div>
+
+  <div class="feed" id="feed"></div>
+
+  <div class="overlay" id="overlay" style="display:none;">
+    <h2 id="overlay-title">Round complete</h2>
+    <div class="score-big" id="overlay-score">0</div>
+    <p id="overlay-text">You've loosed every arrow. Here's how the round shook out.</p>
+    <button class="btn primary" id="overlay-btn">Continue</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const scoreEl = document.getElementById('score');
+  const arrowsEl = document.getElementById('arrows');
+  const roundEl = document.getElementById('round');
+  const windvalEl = document.getElementById('windval');
+  const windarrowEl = document.getElementById('windarrow');
+  const bestEl = document.getElementById('best');
+  const powerfillEl = document.getElementById('powerfill');
+  const powerpctEl = document.getElementById('powerpct');
+  const hintEl = document.getElementById('hint');
+  const feedEl = document.getElementById('feed');
+  const overlayEl = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlayScore = document.getElementById('overlay-score');
+  const overlayText = document.getElementById('overlay-text');
+  const overlayBtn = document.getElementById('overlay-btn');
+  const resetBtn = document.getElementById('resetbtn');
+
+  const TARGET_X = 760;
+  const TARGET_Y = 220;
+  const TARGET_R = 70;
+  const BOW_X = 90;
+  const BOW_Y_BASE = 300;
+  const ARROWS_PER_ROUND = 6;
+  const TOTAL_ROUNDS = 5;
+  const MAX_DRAW_MS = 1400;
+
+  let state = {
+    score: 0,
+    round: 1,
+    arrowsLeft: ARROWS_PER_ROUND,
+    bestEnd: 0,
+    endScore: 0,
+    wind: 0,
+    aimY: BOW_Y_BASE,
+    drawing: false,
+    drawStart: 0,
+    drawPower: 0,
+    arrowsInFlight: [],
+    stuckArrows: [],
+    gameOver: false,
+    paused: false
+  };
+
+  function rollWind(){
+    state.wind = (Math.random() * 2 - 1) * 6;
+  }
+  rollWind();
+
+  function ringScore(dist){
+    if (dist <= TARGET_R * 0.14) return 10;
+    if (dist <= TARGET_R * 0.28) return 9;
+    if (dist <= TARGET_R * 0.42) return 7;
+    if (dist <= TARGET_R * 0.58) return 5;
+    if (dist <= TARGET_R * 0.74) return 3;
+    if (dist <= TARGET_R * 0.92) return 1;
+    return 0;
+  }
+
+  function ringColor(score){
+    if (score === 10) return '#e8c352';
+    if (score === 9) return '#e8c352';
+    if (score === 7) return '#e8dcc4';
+    if (score === 5) return '#e8dcc4';
+    if (score === 3) return '#3a6fae';
+    if (score === 1) return '#3a6fae';
+    return '#a8443a';
+  }
+
+  function addFeedChip(text, gold, miss){
+    const chip = document.createElement('div');
+    chip.className = 'feed-chip' + (gold ? ' gold' : '') + (miss ? ' miss' : '');
+    chip.textContent = text;
+    feedEl.insertBefore(chip, feedEl.firstChild);
+    while (feedEl.children.length > 8) feedEl.removeChild(feedEl.lastChild);
+  }
+
+  function updateHUD(){
+    scoreEl.textContent = state.score;
+    arrowsEl.textContent = state.arrowsLeft;
+    roundEl.textContent = state.round + ' / ' + TOTAL_ROUNDS;
+    bestEl.textContent = state.bestEnd;
+    const w = state.wind;
+    windvalEl.innerHTML = Math.abs(w).toFixed(1) + '<i class="arrow-icon" id="windarrow">' + (w >= 0 ? '→' : '←') + '</i>';
+  }
+
+  function drawGrass(){
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    for (let i=0;i<7;i++){
+      ctx.fillRect(0, 196 + i*38, W, 2);
+    }
+  }
+
+  function drawTargetStand(){
+    ctx.save();
+    ctx.translate(TARGET_X, TARGET_Y);
+
+    ctx.fillStyle = '#2a1d12';
+    ctx.fillRect(-8, TARGET_R - 4, 16, 130);
+
+    const rings = [
+      { r: TARGET_R, color:'#e8dcc4' },
+      { r: TARGET_R*0.92, color:'#a8443a' },
+      { r: TARGET_R*0.74, color:'#3a6fae' },
+      { r: TARGET_R*0.58, color:'#e8dcc4' },
+      { r: TARGET_R*0.42, color:'#a8443a' },
+      { r: TARGET_R*0.28, color:'#e8c352' },
+      { r: TARGET_R*0.14, color:'#a8443a' }
+    ];
+    for (const ring of rings){
+      ctx.beginPath();
+      ctx.arc(0, 0, ring.r, 0, Math.PI*2);
+      ctx.fillStyle = ring.color;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    ctx.save();
+    const flagBend = Math.max(-1, Math.min(1, state.wind / 6)) * 18;
+    ctx.translate(TARGET_R + 6, -TARGET_R - 10);
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.lineTo(0, -34);
+    ctx.strokeStyle = '#caa45a';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -32);
+    ctx.quadraticCurveTo(flagBend*0.6, -28, flagBend, -22);
+    ctx.lineTo(flagBend*0.7, -16);
+    ctx.quadraticCurveTo(flagBend*0.3, -18, 0, -16);
+    ctx.closePath();
+    ctx.fillStyle = '#a8443a';
+    ctx.fill();
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  function drawBow(){
+    const drawAmt = state.drawing ? Math.min(state.drawPower, 1) : 0;
+    const aimY = state.aimY;
+
+    ctx.save();
+    ctx.translate(BOW_X, aimY);
+
+    const bend = drawAmt * 14;
+    ctx.strokeStyle = '#3a2a1e';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(0, -60);
+    ctx.quadraticCurveTo(bend, 0, 0, 60);
+    ctx.stroke();
+
+    const pull = drawAmt * 32;
+    ctx.strokeStyle = '#cfc4a8';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(0, -58);
+    ctx.lineTo(-pull, 0);
+    ctx.lineTo(0, 58);
+    ctx.stroke();
+
+    if (drawAmt > 0.02){
+      ctx.strokeStyle = '#caa45a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-pull, 0);
+      ctx.lineTo(-pull - 46, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-pull - 46, -5);
+      ctx.lineTo(-pull - 36, 0);
+      ctx.lineTo(-pull - 46, 5);
+      ctx.closePath();
+      ctx.fillStyle = '#caa45a';
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawAimLine(){
+    if (!state.drawing) return;
+    ctx.save();
+    ctx.setLineDash([4,6]);
+    ctx.strokeStyle = 'rgba(232,220,196,0.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(BOW_X, state.aimY);
+    ctx.lineTo(W - 30, state.aimY);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPowerOnBow(){
+    if (!state.drawing) return;
+    const pct = Math.min(state.drawPower, 1);
+    ctx.save();
+    ctx.translate(BOW_X - 10, state.aimY - 76);
+    ctx.fillStyle = 'rgba(20,15,11,0.7)';
+    ctx.fillRect(-22, 0, 44, 8);
+    ctx.fillStyle = pct > 0.92 ? '#a8443a' : (pct > 0.6 ? '#e8c352' : '#5c7a44');
+    ctx.fillRect(-22, 0, 44 * pct, 8);
+    ctx.restore();
+  }
+
+  function updateFlight(arrow, dt){
+    arrow.x += arrow.vx * dt;
+    arrow.y += arrow.vy * dt;
+    arrow.vy += 240 * dt;
+    arrow.vx += state.wind * 5 * dt;
+    arrow.trail.push({x:arrow.x, y:arrow.y});
+    if (arrow.trail.length > 14) arrow.trail.shift();
+  }
+
+  function drawFlightArrow(arrow){
+    ctx.save();
+    for (let i=0;i<arrow.trail.length;i++){
+      const t = arrow.trail[i];
+      ctx.globalAlpha = (i / arrow.trail.length) * 0.25;
+      ctx.fillStyle = '#e8dcc4';
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 1.6, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    const angle = Math.atan2(arrow.vy, arrow.vx);
+    ctx.translate(arrow.x, arrow.y);
+    ctx.rotate(angle);
+    ctx.strokeStyle = '#caa45a';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-22, 0);
+    ctx.lineTo(6, 0);
+    ctx.stroke();
+    ctx.fillStyle = '#3a2a1e';
+    ctx.beginPath();
+    ctx.moveTo(6,0);
+    ctx.lineTo(-2,-3);
+    ctx.lineTo(-2,3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#a8443a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-22,0); ctx.lineTo(-26,-3);
+    ctx.moveTo(-22,0); ctx.lineTo(-26,3);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawStuckArrow(a){
+    ctx.save();
+    ctx.translate(TARGET_X + a.dx, TARGET_Y + a.dy);
+    ctx.rotate(a.angle);
+    ctx.strokeStyle = '#3a2a1e';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.lineTo(26,0);
+    ctx.stroke();
+    ctx.strokeStyle = '#a8443a';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(26,0); ctx.lineTo(31,-2.5);
+    ctx.moveTo(26,0); ctx.lineTo(31,2.5);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function render(){
+    ctx.clearRect(0,0,W,H);
+
+    const grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0, '#2a3a52');
+    grad.addColorStop(0.4, '#5b7a8c');
+    grad.addColorStop(0.43, '#6b8e4e');
+    grad.addColorStop(1, '#3f5630');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H);
+
+    drawGrass();
+    drawTargetStand();
+    for (const a of state.stuckArrows) drawStuckArrow(a);
+
+    ctx.fillStyle = '#2a1d12';
+    ctx.fillRect(BOW_X - 4, 200, 8, 200);
+
+    drawAimLine();
+    drawBow();
+    drawPowerOnBow();
+
+    for (const arrow of state.arrowsInFlight) drawFlightArrow(arrow);
+  }
+
+  function endRoundIfNeeded(){
+    if (state.arrowsLeft > 0) return;
+    state.bestEnd = Math.max(state.bestEnd, state.endScore);
+    updateHUD();
+
+    setTimeout(() => {
+      if (state.round >= TOTAL_ROUNDS){
+        state.gameOver = true;
+        overlayTitle.textContent = 'Final score';
+        overlayScore.textContent = state.score;
+        overlayText.textContent = 'Five rounds complete, thirty arrows loosed. ' + finalRemark(state.score);
+        overlayBtn.textContent = 'Shoot again';
+        overlayEl.style.display = 'flex';
+      } else {
+        overlayTitle.textContent = 'End of round ' + state.round;
+        overlayScore.textContent = state.endScore;
+        overlayText.textContent = 'Wind shifts before the next end. ' + endRemark(state.endScore);
+        overlayBtn.textContent = 'Next round';
+        overlayEl.style.display = 'flex';
+      }
+    }, 550);
+  }
+
+  function endRemark(s){
+    if (s >= 50) return 'A near-perfect end — steady hand.';
+    if (s >= 35) return 'Strong scoring, the gold is in range.';
+    if (s >= 20) return 'Solid groundwork. Tighten the group next end.';
+    return 'Rough end — watch the wind flag before you draw.';
+  }
+  function finalRemark(s){
+    if (s >= 240) return 'Master bowman form.';
+    if (s >= 180) return 'A genuinely fine round.';
+    if (s >= 100) return 'Respectable shooting.';
+    return 'Plenty of room to tighten the grouping — try again.';
+  }
+
+  function fireArrow(){
+    const power = Math.min(state.drawPower, 1);
+    if (power < 0.05){ resetDraw(); return; }
+
+    const speed = 380 + power * 520;
+    const vx = speed;
+    const vy = -(power - 0.5) * 90;
+
+    state.arrowsInFlight.push({
+      x: BOW_X, y: state.aimY,
+      vx: vx, vy: vy,
+      power: power,
+      trail: []
+    });
+
+    state.arrowsLeft--;
+    updateHUD();
+    resetDraw();
+  }
+
+  function resetDraw(){
+    state.drawing = false;
+    state.drawPower = 0;
+    powerfillEl.style.width = '0%';
+    powerpctEl.textContent = '0%';
+  }
+
+  function pointerY(e, rect){
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const scale = H / rect.height;
+    return (clientY - rect.top) * scale;
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (state.gameOver || state.arrowsLeft <= 0 || state.arrowsInFlight.length > 0) return;
+    const rect = canvas.getBoundingClientRect();
+    state.aimY = Math.max(120, Math.min(380, pointerY(e, rect)));
+    state.drawing = true;
+    state.drawStart = performance.now();
+    hintEl.textContent = 'Move to aim. Release anywhere to loose the arrow.';
+    canvas.setPointerCapture(e.pointerId);
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!state.drawing) return;
+    const rect = canvas.getBoundingClientRect();
+    state.aimY = Math.max(120, Math.min(380, pointerY(e, rect)));
+  });
+
+  function release(){
+    if (!state.drawing) return;
+    fireArrow();
+    hintEl.textContent = 'Click and hold on the field to draw your bow. Move up/down to aim. Release to fire.';
+  }
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+
+  function gameLoop(prevTime){
+    return function(time){
+      const dt = Math.min(0.032, (time - prevTime) / 1000);
+
+      if (state.drawing){
+        const elapsed = performance.now() - state.drawStart;
+        state.drawPower = Math.min(elapsed / MAX_DRAW_MS, 1);
+        powerfillEl.style.width = (state.drawPower * 100) + '%';
+        powerpctEl.textContent = Math.round(state.drawPower * 100) + '%';
+      }
+
+      for (let i = state.arrowsInFlight.length - 1; i >= 0; i--){
+        const arrow = state.arrowsInFlight[i];
+        updateFlight(arrow, dt);
+
+        const dx = arrow.x - TARGET_X;
+        const dy = arrow.y - TARGET_Y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const reachedTarget = arrow.x >= TARGET_X - 6;
+
+        if (reachedTarget || arrow.y > H + 40 || arrow.x > W + 40){
+          state.arrowsInFlight.splice(i, 1);
+
+          if (reachedTarget && dist <= TARGET_R + 6 && arrow.y < H){
+            const pts = ringScore(Math.min(dist, TARGET_R));
+            state.score += pts;
+            state.endScore += pts;
+            state.stuckArrows.push({
+              dx: Math.max(-TARGET_R+4, Math.min(TARGET_R-4, dx)),
+              dy: Math.max(-TARGET_R+4, Math.min(TARGET_R-4, dy)),
+              angle: (Math.random()-0.5)*0.5
+            });
+            addFeedChip(pts + ' pts', pts >= 9, false);
+          } else {
+            addFeedChip('Miss', false, true);
+          }
+
+          updateHUD();
+          if (state.arrowsLeft <= 0){
+            setTimeout(endRoundIfNeeded, 200);
+          }
+        }
+      }
+
+      render();
+      requestAnimationFrame(gameLoop(time));
+    };
+  }
+  requestAnimationFrame((t) => requestAnimationFrame(gameLoop(t)));
+
+  function startRound(){
+    state.arrowsLeft = ARROWS_PER_ROUND;
+    state.endScore = 0;
+    state.stuckArrows = [];
+    state.arrowsInFlight = [];
+    rollWind();
+    updateHUD();
+    overlayEl.style.display = 'none';
+  }
+
+  function newGame(){
+    state.score = 0;
+    state.round = 1;
+    state.bestEnd = 0;
+    state.gameOver = false;
+    startRound();
+  }
+
+  overlayBtn.addEventListener('click', () => {
+    if (state.gameOver){
+      newGame();
+    } else {
+      state.round++;
+      startRound();
+    }
+  });
+
+  resetBtn.addEventListener('click', () => {
+    newGame();
+  });
+
+  updateHUD();
+  render();
+})();
+</script>
+
+</body>
+</html>
